@@ -1,12 +1,42 @@
+import os
+from ctypes import windll
+import subprocess
+import webbrowser
+
+import pyaudio
+import wave
+from pydub import AudioSegment
+
 import customtkinter as ctk
 from tkinter import Menu, filedialog
-import webbrowser
+from tkinter import ttk
 from PIL import Image
-from ctypes import windll
+
+
+def find_ffmpeg():
+    """
+    Finds the location of `ffmpeg.exe` by checking the system PATH variable.
+    Ensure that the directory containing `ffmpeg.exe` is included in the PATH environment variable.
+    """
+
+    try:
+        result = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return None
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+
+# Set ffmpeg path
+AudioSegment.converter = find_ffmpeg()
 
 
 class TitleBarRight(ctk.CTkFrame):
     """Title bar right class. Contains buttons for closing and minimizing"""
+
     def __init__(self, master):
         super().__init__(master=master, corner_radius=0, fg_color="transparent")
 
@@ -70,6 +100,7 @@ class TitleBarRight(ctk.CTkFrame):
 
 class TitleBarLeft(ctk.CTkFrame):
     """Title bar left class. Contains logo button and menu"""
+
     def __init__(self, master):
         super().__init__(master=master, corner_radius=0)
 
@@ -103,11 +134,12 @@ class TitleBarLeft(ctk.CTkFrame):
     def __creating_menu(self):
         self.logo_menu = Menu(master=self, tearoff=0)
 
+        # TODO yeah, link to github repo
         self.logo_menu.add_command(label="About", command=lambda: webbrowser.open("https://github.com"))
         self.logo_menu.add_separator()
 
-        self.logo_menu.add_command(label="Open Files", command=lambda: filedialog.askopenfilenames(title="Open"))
-        self.logo_menu.add_command(label="Open Folder", command=lambda: filedialog.askdirectory(title="Open"))
+        self.logo_menu.add_command(label="Open Files", command=self.move_files)
+        self.logo_menu.add_command(label="Open Folder", command=self.move_folder)
         self.logo_menu.add_separator()
 
         self.appearance_menu = Menu(self, tearoff=0)
@@ -131,7 +163,6 @@ class TitleBarLeft(ctk.CTkFrame):
             image=self.hover_logo_button_image.get(ctk.get_appearance_mode())))
         self.logo_button.bind("<Leave>", lambda event: self.logo_button.configure(image=self.logo_button_image))
 
-
     '''Functional Public Methods'''
 
     def start_move(self, event):
@@ -150,6 +181,35 @@ class TitleBarLeft(ctk.CTkFrame):
         # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         windll.user32.ShowWindow(hwnd, 2)
 
+    @staticmethod
+    def move_files():
+        file_paths = filedialog.askopenfilenames(title="Open")
+        for file_path in file_paths:
+            file_name_without_extension = os.path.basename(file_path).rsplit(".", 1)[0]
+            new_folder = os.path.join("..", "Audio", file_name_without_extension)
+            try:
+                os.makedirs(new_folder, exist_ok=True)
+                audio = AudioSegment.from_file(file_path)
+                wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
+                audio.export(wav_path, format="wav")
+            except FileExistsError:
+                print(f"Audio file {file_name_without_extension} has already been imported")
+
+    @staticmethod
+    def move_folder():
+        folder_path = filedialog.askdirectory(title="Select Folder")
+        for dirpath, dirnames, filenames in os.walk(folder_path):
+            for filename in filenames:
+                file_name_without_extension = filename.rsplit(".", 1)[0]
+                new_folder = os.path.join("..", "Audio", file_name_without_extension)
+                try:
+                    os.makedirs(new_folder, exist_ok=True)
+                    audio = AudioSegment.from_file(os.path.join(dirpath, filename))
+                    wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
+                    audio.export(wav_path, format="wav")
+                except FileExistsError:
+                    print(f"Audio file {filename} has already been imported")
+
 
 class LeftFrame(ctk.CTkFrame):
     def __init__(self, master):
@@ -161,6 +221,13 @@ class LeftFrame(ctk.CTkFrame):
 
         self.album_cover_label = ctk.CTkLabel(master=self, image=self.vinyl_disk_image, text="")
         self.album_cover_label.grid(row=1, column=0, padx=(10, 0), pady=(20, 10), sticky="news")
+
+
+class RightFrame(ctk.CTkFrame):
+    def __init__(self, master):
+        super().__init__(master=master)
+        # self.audio_list = ttk.Treeview()
+        # self.audio_list.grid(row=0, column=0)
 
 
 class BottomFrame(ctk.CTkFrame):
@@ -243,10 +310,8 @@ class MPS(ctk.CTk):
 
         self.frame_center = ctk.CTkFrame(self, fg_color="transparent")
         self.frame_right = ctk.CTkFrame(self)
-        self.frame_bottom = ctk.CTkFrame(self)
 
         self.frame_center.grid(row=1, column=1, padx=(3, 3), pady=(0, 0), sticky="news")
-        self.frame_right.grid(row=1, column=2, padx=(3, 0), pady=(0, 0), sticky="news")
 
         self.title_bar_left = TitleBarLeft(master=self)
         self.title_bar_left.grid(row=0, column=0, padx=(0, 0), pady=(0, 0), sticky="news")
@@ -256,6 +321,8 @@ class MPS(ctk.CTk):
         self.frame_left.grid(row=1, column=0, padx=(0, 0), pady=(0, 0), sticky="news")
         self.frame_bottom = BottomFrame(master=self)
         self.frame_bottom.grid(row=2, column=0, columnspan=3, padx=(0, 0), pady=(5, 10), sticky="news")
+        self.frame_right = RightFrame(master=self)
+        self.frame_right.grid(row=1, column=2, padx=(3, 0), pady=(0, 0), sticky="news")
 
 
 if __name__ == "__main__":
