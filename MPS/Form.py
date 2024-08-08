@@ -12,26 +12,40 @@ from tkinter import Menu, filedialog
 from tkinter import ttk
 from PIL import Image
 
-
-def find_ffmpeg():
-    """
-    Finds the location of `ffmpeg.exe` by checking the system PATH variable.
-    Ensure that the directory containing `ffmpeg.exe` is included in the PATH environment variable.
-    """
-
-    try:
-        result = subprocess.run(["where", "ffmpeg"], capture_output=True, text=True)
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            return None
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
-
 # Set ffmpeg path
-AudioSegment.converter = find_ffmpeg()
+AudioSegment.converter = "ffmpeg.exe"
+
+
+class FileOperations:
+    @staticmethod
+    def move_files():
+        # TODO add filetypes
+        file_paths = filedialog.askopenfilenames(title="Open")
+        for file_path in file_paths:
+            file_name_without_extension = os.path.basename(file_path).rsplit(".", 1)[0]
+            new_folder = os.path.join("..", "Audio", file_name_without_extension)
+            try:
+                os.makedirs(new_folder, exist_ok=True)
+                audio = AudioSegment.from_file(file_path)
+                wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
+                audio.export(wav_path, format="wav")
+            except FileExistsError:
+                print(f"Audio file {file_name_without_extension} has already been imported")
+
+    @staticmethod
+    def move_folder():
+        folder_path = filedialog.askdirectory(title="Select Folder")
+        for dirpath, dirnames, filenames in os.walk(folder_path):
+            for filename in filenames:
+                file_name_without_extension = filename.rsplit(".", 1)[0]
+                new_folder = os.path.join("..", "Audio", file_name_without_extension)
+                try:
+                    os.makedirs(new_folder, exist_ok=True)
+                    audio = AudioSegment.from_file(os.path.join(dirpath, filename))
+                    wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
+                    audio.export(wav_path, format="wav")
+                except FileExistsError:
+                    print(f"Audio file {filename} has already been imported")
 
 
 class TitleBarRight(ctk.CTkFrame):
@@ -138,23 +152,22 @@ class TitleBarLeft(ctk.CTkFrame):
         self.logo_menu.add_command(label="About", command=lambda: webbrowser.open("https://github.com"))
         self.logo_menu.add_separator()
 
-        self.logo_menu.add_command(label="Open Files", command=self.move_files)
-        self.logo_menu.add_command(label="Open Folder", command=self.move_folder)
+        self.logo_menu.add_command(label="Open Files", command=FileOperations.move_files)
+        self.logo_menu.add_command(label="Open Folder", command=FileOperations.move_folder)
         self.logo_menu.add_separator()
 
         self.appearance_menu = Menu(self, tearoff=0)
-        self.appearance_menu.add_radiobutton(label="Light", command=lambda: ctk.set_appearance_mode("Light"))
-        self.appearance_menu.add_radiobutton(label="Dark", command=lambda: ctk.set_appearance_mode("Dark"))
+        self.appearance_menu.add_radiobutton(label="Light", command=self.set_light_theme)
+        self.appearance_menu.add_radiobutton(label="Dark", command=self.set_dark_theme)
         self.logo_menu.add_cascade(label="Theme", menu=self.appearance_menu)
 
         # TODO add commands
         self.logo_menu.add_command(label="Clear Downloads", command=...)
-        self.logo_menu.add_command(label="Storage Location", command=...)
         self.logo_menu.add_separator()
 
         self.logo_menu.add_command(label="Exit", command=quit)
 
-    # These events are duplicated in the TitleBarRight
+    # self.bind are duplicated in the TitleBarRight
     def __events(self):
         self.bind("<ButtonPress-1>", self.start_move)
         self.bind("<B1-Motion>", self.move_window)
@@ -181,35 +194,20 @@ class TitleBarLeft(ctk.CTkFrame):
         # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         windll.user32.ShowWindow(hwnd, 2)
 
-    @staticmethod
-    def move_files():
-        file_paths = filedialog.askopenfilenames(title="Open")
-        for file_path in file_paths:
-            file_name_without_extension = os.path.basename(file_path).rsplit(".", 1)[0]
-            new_folder = os.path.join("..", "Audio", file_name_without_extension)
-            try:
-                os.makedirs(new_folder, exist_ok=True)
-                audio = AudioSegment.from_file(file_path)
-                wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
-                audio.export(wav_path, format="wav")
-            except FileExistsError:
-                print(f"Audio file {file_name_without_extension} has already been imported")
+    # TODO Start theme
+    def set_dark_theme(self):
+        self.style = ttk.Style()
+        ctk.set_appearance_mode("Dark")
+        self.style.theme_use("clam")
+        self.style.configure("Treeview", background="#2b2b2b", foreground="#d0d0d0", fieldbackground="#2b2b2b")
+        self.style.configure("Treeview.Heading", background="#3c3c3c", foreground="#d0d0d0")
 
-    @staticmethod
-    def move_folder():
-        folder_path = filedialog.askdirectory(title="Select Folder")
-        for dirpath, dirnames, filenames in os.walk(folder_path):
-            for filename in filenames:
-                file_name_without_extension = filename.rsplit(".", 1)[0]
-                new_folder = os.path.join("..", "Audio", file_name_without_extension)
-                try:
-                    os.makedirs(new_folder, exist_ok=True)
-                    audio = AudioSegment.from_file(os.path.join(dirpath, filename))
-                    wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
-                    audio.export(wav_path, format="wav")
-                except FileExistsError:
-                    print(f"Audio file {filename} has already been imported")
-
+    def set_light_theme(self):
+        self.style = ttk.Style()
+        ctk.set_appearance_mode("Light")
+        self.style.theme_use("vista")
+        self.style.configure("Treeview", background="#2b2b2b", foreground="#000000", fieldbackground="#ffffff")
+        self.style.configure("Treeview.Heading", background="#e0e0e0", foreground="#000000")
 
 class LeftFrame(ctk.CTkFrame):
     def __init__(self, master):
@@ -226,8 +224,58 @@ class LeftFrame(ctk.CTkFrame):
 class RightFrame(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master=master)
-        # self.audio_list = ttk.Treeview()
-        # self.audio_list.grid(row=0, column=0)
+        self.grid_columnconfigure((1, 2), weight=1)
+        self.grid_columnconfigure(0, weight=0, minsize=300)
+
+        self.__creating_objects()
+        self.__CreatingTreeview(master=self)
+
+    class __CreatingTreeview(ctk.CTkFrame):
+        def __init__(self, master):
+            super().__init__(master=master, fg_color="transparent")
+            self.grid(row=1, column=0, columnspan=3, sticky="news")
+
+            self.song_treeview = ttk.Treeview(self, columns=("name", "length"), show="headings")
+            self.song_treeview.grid(padx=10, pady=10, row=1, column=0, sticky="nse")
+            self.song_treeview.heading("name", text="Name")
+            self.song_treeview.heading("length", text="Length")
+            self.song_treeview.column("name", anchor="w", width=300)
+            self.song_treeview.column("length", anchor="w", width=50)
+
+            self.scrollbar = ctk.CTkScrollbar(self, orientation="vertical", command=self.song_treeview.yview)
+            self.song_treeview.configure(yscrollcommand=self.scrollbar.set)
+
+            self.scrollbar.grid(row=1, column=1, sticky="ns")
+
+    def __creating_objects(self):
+        self.label = ctk.CTkLabel(self, width=30, height=30)
+        self.add_button = ctk.CTkButton(master=self,
+                                        width=30,
+                                        height=30,
+                                        fg_color="red",
+                                        text="Plus",
+                                        command=lambda: self.add_menu.post(x=self.add_button.winfo_rootx(),
+                                                                           y=self.add_button.winfo_rooty() + self.add_button.winfo_height()),
+                                        hover=False,
+                                        )
+        self.delete_button = ctk.CTkButton(master=self,
+                                           width=30,
+                                           height=30,
+                                           fg_color="Red",
+                                           text="Minus",
+                                           command=None,
+                                           hover=False,
+                                           )
+
+        self.add_menu = Menu(master=self, tearoff=0)
+
+        self.add_menu.add_command(label="Open Files", command=FileOperations.move_files)
+        self.add_menu.add_command(label="Open Folder", command=FileOperations.move_folder)
+
+        self.label.grid(row=2, column=0, sticky="news")
+        self.add_button.grid(row=2, column=1, sticky="news")
+        self.delete_button.grid(row=2, column=2, sticky="news")
+
 
 
 class BottomFrame(ctk.CTkFrame):
