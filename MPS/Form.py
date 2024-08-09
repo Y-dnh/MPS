@@ -12,6 +12,7 @@ from tkinter import Menu, filedialog
 from tkinter import ttk
 from PIL import Image
 
+
 # Set ffmpeg path
 AudioSegment.converter = "ffmpeg.exe"
 
@@ -46,6 +47,28 @@ class FileOperations:
                     audio.export(wav_path, format="wav")
                 except FileExistsError:
                     print(f"Audio file {filename} has already been imported")
+
+
+class ThemeManager:
+    @staticmethod
+    def set_dark_theme():
+        style = ttk.Style()
+        ctk.set_appearance_mode("Dark")
+        style.theme_use("clam")
+        style.configure("Treeview", background="#2b2b2b", foreground="#d0d0d0", fieldbackground="#2b2b2b")
+        style.configure("Treeview.Heading", background="#333333", foreground="#d0d0d0", relief='flat')
+        app.frame_right.songs_list.song_treeview.tag_configure("even", background="#2e2e2e")
+        app.frame_right.songs_list.song_treeview.tag_configure("odd", background="#333333")
+
+    @staticmethod
+    def set_light_theme():
+        style = ttk.Style()
+        ctk.set_appearance_mode("Light")
+        style.theme_use("clam")
+        style.configure("Treeview", background="#2b2b2b", foreground="#000000", fieldbackground="#dbdbdb")
+        style.configure("Treeview.Heading", background="#e3e3e3", foreground="#000000", relief='flat')
+        app.frame_right.songs_list.song_treeview.tag_configure("even", background="#dbdbdb")
+        app.frame_right.songs_list.song_treeview.tag_configure("odd", background="#e3e3e3")
 
 
 class TitleBarRight(ctk.CTkFrame):
@@ -157,8 +180,8 @@ class TitleBarLeft(ctk.CTkFrame):
         self.logo_menu.add_separator()
 
         self.appearance_menu = Menu(self, tearoff=0)
-        self.appearance_menu.add_radiobutton(label="Light", command=self.set_light_theme)
-        self.appearance_menu.add_radiobutton(label="Dark", command=self.set_dark_theme)
+        self.appearance_menu.add_radiobutton(label="Light", command=ThemeManager.set_light_theme)
+        self.appearance_menu.add_radiobutton(label="Dark", command=ThemeManager.set_dark_theme)
         self.logo_menu.add_cascade(label="Theme", menu=self.appearance_menu)
 
         # TODO add commands
@@ -194,20 +217,6 @@ class TitleBarLeft(ctk.CTkFrame):
         # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
         windll.user32.ShowWindow(hwnd, 2)
 
-    # TODO Start theme
-    def set_dark_theme(self):
-        self.style = ttk.Style()
-        ctk.set_appearance_mode("Dark")
-        self.style.theme_use("clam")
-        self.style.configure("Treeview", background="#2b2b2b", foreground="#d0d0d0", fieldbackground="#2b2b2b")
-        self.style.configure("Treeview.Heading", background="#3c3c3c", foreground="#d0d0d0")
-
-    def set_light_theme(self):
-        self.style = ttk.Style()
-        ctk.set_appearance_mode("Light")
-        self.style.theme_use("vista")
-        self.style.configure("Treeview", background="#2b2b2b", foreground="#000000", fieldbackground="#ffffff")
-        self.style.configure("Treeview.Heading", background="#e0e0e0", foreground="#000000")
 
 class LeftFrame(ctk.CTkFrame):
     def __init__(self, master):
@@ -228,7 +237,7 @@ class RightFrame(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=0, minsize=300)
 
         self.__creating_objects()
-        self.__CreatingTreeview(master=self)
+        self.songs_list = self.__CreatingTreeview(master=self)
 
     class __CreatingTreeview(ctk.CTkFrame):
         def __init__(self, master):
@@ -236,16 +245,24 @@ class RightFrame(ctk.CTkFrame):
             self.grid(row=1, column=0, columnspan=3, sticky="news")
 
             self.song_treeview = ttk.Treeview(self, columns=("name", "length"), show="headings")
-            self.song_treeview.grid(padx=10, pady=10, row=1, column=0, sticky="nse")
+            self.song_treeview.grid(padx=(10, 0), pady=10, row=1, column=0, sticky="nse")
             self.song_treeview.heading("name", text="Name")
             self.song_treeview.heading("length", text="Length")
-            self.song_treeview.column("name", anchor="w", width=300)
+            self.song_treeview.column("name", anchor="w", width=325)
             self.song_treeview.column("length", anchor="w", width=50)
 
             self.scrollbar = ctk.CTkScrollbar(self, orientation="vertical", command=self.song_treeview.yview)
             self.song_treeview.configure(yscrollcommand=self.scrollbar.set)
 
             self.scrollbar.grid(row=1, column=1, sticky="ns")
+
+            # TODO delete
+            import random
+            for i in range(4):
+                name = f"Song {i + 1}"
+                length = f"{random.randint(2, 5)}:{random.randint(0, 59):02d}"
+                tag = "even" if i % 2 == 0 else "odd"
+                self.song_treeview.insert("", "end", values=(name, length), tags=(tag,))
 
     def __creating_objects(self):
         self.label = ctk.CTkLabel(self, width=30, height=30)
@@ -275,7 +292,6 @@ class RightFrame(ctk.CTkFrame):
         self.label.grid(row=2, column=0, sticky="news")
         self.add_button.grid(row=2, column=1, sticky="news")
         self.delete_button.grid(row=2, column=2, sticky="news")
-
 
 
 class BottomFrame(ctk.CTkFrame):
@@ -348,7 +364,6 @@ class MPS(ctk.CTk):
         self.overrideredirect(True)
         self.iconbitmap("Images/Logo/Ico.ico")
         self.attributes("-alpha", 1.0)
-
         self.grid_rowconfigure(0, minsize=36, weight=1)
         self.grid_rowconfigure(1, minsize=495, weight=1)
         self.grid_rowconfigure(2, minsize=75, weight=1)
@@ -375,4 +390,5 @@ class MPS(ctk.CTk):
 
 if __name__ == "__main__":
     app = MPS()
+    ThemeManager.set_dark_theme() if ctk.get_appearance_mode() == "Dark" else ThemeManager.set_light_theme()
     app.mainloop()
