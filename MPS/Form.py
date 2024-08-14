@@ -14,8 +14,7 @@ from PIL import Image
 
 
 # Set ffmpeg path
-AudioSegment.converter = "ffmpeg.exe"
-
+AudioSegment.converter = os.path.join(os.path.dirname(__file__), 'ffmpeg.exe')
 
 class FileOperations:
     @staticmethod
@@ -257,15 +256,15 @@ class RightFrame(ctk.CTkFrame):
             self.scrollbar.grid(row=1, column=1, sticky="ns")
 
             # TODO delete
-            import random
-            for i in range(4):
-                name = f"Song {i + 1}"
-                length = f"{random.randint(2, 5)}:{random.randint(0, 59):02d}"
-                tag = "even" if i % 2 == 0 else "odd"
-                self.song_treeview.insert("", "end", values=(name, length), tags=(tag,))
+            # import random
+            # for i in range(4):
+            #     name = f"Song {i + 1}"
+            #     length = f"{random.randint(2, 5)}:{random.randint(0, 59):02d}"
+            #     tag = "even" if i % 2 == 0 else "odd"
+            #     self.song_treeview.insert("", "end", values=(name, length), tags=(tag,))
 
     def __creating_objects(self):
-        self.label = ctk.CTkLabel(self, width=30, height=30)
+        self.search_label = ctk.CTkLabel(self, width=30, height=30, anchor="w", text="Search")
         self.add_button = ctk.CTkButton(master=self,
                                         width=30,
                                         height=30,
@@ -289,7 +288,7 @@ class RightFrame(ctk.CTkFrame):
         self.add_menu.add_command(label="Open Files", command=FileOperations.move_files)
         self.add_menu.add_command(label="Open Folder", command=FileOperations.move_folder)
 
-        self.label.grid(row=2, column=0, sticky="news")
+        self.search_label.grid(row=2, column=0, sticky="news", padx=(10, 0))
         self.add_button.grid(row=2, column=1, sticky="news")
         self.delete_button.grid(row=2, column=2, sticky="news")
 
@@ -298,15 +297,18 @@ class BottomFrame(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master=master, corner_radius=0)
         self.grid_columnconfigure((0, 1, 2), weight=0)  # Ліва сторона розширюється
-        self.grid_columnconfigure(3, weight=1)  # Ліва сторона розширюється
-        self.grid_columnconfigure((4, 5, 6), weight=0)  # Ліва сторона розширюється
+        self.grid_columnconfigure((3, 4), weight=1)  # Ліва сторона розширюється
+        self.grid_columnconfigure((5, 6, 7), weight=0)  # Ліва сторона розширюється
 
         self.album_cover_image = ctk.CTkImage(dark_image=Image.open("Images/Buttons/VinylDiskLight.png"),
                                               light_image=Image.open("Images/Buttons/VinylDiskDark.png"),
                                               size=(40, 40))
 
         self.album_cover_label = ctk.CTkLabel(master=self, image=self.album_cover_image, text="")
-        self.album_cover_label.grid(row=0, column=3, padx=(0, 0), pady=(0, 0), sticky="news")
+        self.album_cover_label.grid(row=0, column=3, padx=(0, 5), pady=(0, 0), sticky="nes")
+
+        self.label = ctk.CTkLabel(self, width=30, height=30, text=f"Song name\nArtist nickname", anchor="e")
+        self.label.grid(row=0, column=4, padx=(5, 0), pady=(0, 0), sticky="nws")
 
         self.images = {
             "next": ctk.CTkImage(dark_image=Image.open("Images/Buttons/NextLight.png"),
@@ -340,9 +342,9 @@ class BottomFrame(ctk.CTkFrame):
         self.previous_button.grid(row=0, column=0, pady=(10, 10), sticky="news")
         self.pause_button.grid(row=0, column=1, pady=(10, 10), sticky="news")
         self.next_button.grid(row=0, column=2, pady=(10, 10), sticky="news")
-        self.volume_button.grid(row=0, column=4, pady=(10, 10), sticky="news")
-        self.repeat_button.grid(row=0, column=5, pady=(10, 10), sticky="news")
-        self.shuffle_button.grid(row=0, column=6, pady=(10, 10), sticky="news")
+        self.volume_button.grid(row=0, column=5, pady=(10, 10), sticky="news")
+        self.repeat_button.grid(row=0, column=6, pady=(10, 10), sticky="news")
+        self.shuffle_button.grid(row=0, column=7, pady=(10, 10), sticky="news")
 
     def create_button(self, image, command=...):
         button = ctk.CTkButton(master=self,
