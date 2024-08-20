@@ -2,6 +2,7 @@ import os
 from ctypes import windll
 import subprocess
 import webbrowser
+import shutil
 
 import pyaudio
 import wave
@@ -12,40 +13,89 @@ from tkinter import Menu, filedialog
 from tkinter import ttk
 from PIL import Image
 
-
 # Set ffmpeg path
 AudioSegment.converter = os.path.join(os.path.dirname(__file__), 'ffmpeg.exe')
 
+
 class FileOperations:
-    @staticmethod
-    def move_files():
-        # TODO add filetypes
+    def __init__(self, right_frame):
+        self.right_frame = right_frame
+        self.song_list_path = "../Audio/song_list.txt"
+        self.audio_folder = os.path.join("..", "Audio")
+        self.existing_songs = self.load_existing_songs()
+
+    def load_existing_songs(self):
+        """Load existing songs from the song list file."""
+        if not os.path.exists(self.song_list_path):
+            return set()
+        with open(self.song_list_path, "r") as file:
+            return set(line.strip() for line in file)
+
+    def save_song(self, song_name):
+        """Append a new song to the song list file."""
+        with open(self.song_list_path, "a") as file:
+            file.write(song_name + "\n")
+
+    def move_files(self):
+        """Move and convert selected audio files to WAV format."""
         file_paths = filedialog.askopenfilenames(title="Open")
         for file_path in file_paths:
             file_name_without_extension = os.path.basename(file_path).rsplit(".", 1)[0]
-            new_folder = os.path.join("..", "Audio", file_name_without_extension)
-            try:
-                os.makedirs(new_folder, exist_ok=True)
-                audio = AudioSegment.from_file(file_path)
-                wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
-                audio.export(wav_path, format="wav")
-            except FileExistsError:
-                print(f"Audio file {file_name_without_extension} has already been imported")
 
-    @staticmethod
-    def move_folder():
+            if file_name_without_extension in self.existing_songs:
+                print(f"Audio file {file_name_without_extension} has already been imported")
+                continue
+
+            new_folder = os.path.join(self.audio_folder, file_name_without_extension)
+            os.makedirs(new_folder, exist_ok=True)
+            wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
+
+            try:
+                audio = AudioSegment.from_file(file_path)
+                audio.export(wav_path, format="wav")
+                self.save_song(file_name_without_extension)
+                self.existing_songs.add(file_name_without_extension)
+            except Exception as e:
+                print(f"Error occurred while processing {file_path}: {e}")
+
+        self.update_songs_list()
+
+    def move_folder(self):
+        """Move and convert all audio files in a selected folder to WAV format."""
         folder_path = filedialog.askdirectory(title="Select Folder")
         for dirpath, dirnames, filenames in os.walk(folder_path):
             for filename in filenames:
                 file_name_without_extension = filename.rsplit(".", 1)[0]
-                new_folder = os.path.join("..", "Audio", file_name_without_extension)
+
+                if file_name_without_extension in self.existing_songs:
+                    print(f"Audio file {file_name_without_extension} has already been imported")
+                    continue
+
+                new_folder = os.path.join(self.audio_folder, file_name_without_extension)
+                os.makedirs(new_folder, exist_ok=True)
+                wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
+
                 try:
-                    os.makedirs(new_folder, exist_ok=True)
                     audio = AudioSegment.from_file(os.path.join(dirpath, filename))
-                    wav_path = os.path.join(new_folder, file_name_without_extension + ".wav")
                     audio.export(wav_path, format="wav")
-                except FileExistsError:
-                    print(f"Audio file {filename} has already been imported")
+                    self.save_song(file_name_without_extension)
+                    self.existing_songs.add(file_name_without_extension)
+                except Exception as e:
+                    print(f"Error occurred while processing {os.path.join(dirpath, filename)}: {e}")
+
+        self.update_songs_list()
+
+    def delete_all_songs(self):
+        """Delete all songs and clear the song list file."""
+        if os.path.exists(self.audio_folder):
+            shutil.rmtree(self.audio_folder)
+        open(self.song_list_path, 'w').close()  # Clear the song list file
+        self.existing_songs.clear()
+        self.update_songs_list()
+
+    def update_songs_list(self):
+        """Update the songs list view."""
+        self.right_frame.songs_list.update_songs_list()  # Update the Treeview
 
 
 class ThemeManager:
@@ -137,8 +187,9 @@ class TitleBarRight(ctk.CTkFrame):
 class TitleBarLeft(ctk.CTkFrame):
     """Title bar left class. Contains logo button and menu"""
 
-    def __init__(self, master):
+    def __init__(self, master, file_operations):
         super().__init__(master=master, corner_radius=0)
+        self.file_operations = file_operations
 
         self.grid_columnconfigure(0, weight=1)
         self.logo_button_image = ctk.CTkImage(dark_image=Image.open("Images/Logo/DarkLogo.png"),
@@ -174,8 +225,8 @@ class TitleBarLeft(ctk.CTkFrame):
         self.logo_menu.add_command(label="About", command=lambda: webbrowser.open("https://github.com"))
         self.logo_menu.add_separator()
 
-        self.logo_menu.add_command(label="Open Files", command=FileOperations.move_files)
-        self.logo_menu.add_command(label="Open Folder", command=FileOperations.move_folder)
+        self.logo_menu.add_command(label="Open Files", command=self.file_operations.move_files)
+        self.logo_menu.add_command(label="Open Folder", command=self.file_operations.move_folder)
         self.logo_menu.add_separator()
 
         self.appearance_menu = Menu(self, tearoff=0)
@@ -183,8 +234,7 @@ class TitleBarLeft(ctk.CTkFrame):
         self.appearance_menu.add_radiobutton(label="Dark", command=ThemeManager.set_dark_theme)
         self.logo_menu.add_cascade(label="Theme", menu=self.appearance_menu)
 
-        # TODO add commands
-        self.logo_menu.add_command(label="Clear Downloads", command=...)
+        self.logo_menu.add_command(label="Clear Downloads", command=self.file_operations.delete_all_songs)
         self.logo_menu.add_separator()
 
         self.logo_menu.add_command(label="Exit", command=quit)
@@ -236,12 +286,13 @@ class RightFrame(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=0, minsize=300)
 
         self.__creating_objects()
-        self.songs_list = self.__CreatingTreeview(master=self)
+        self.songs_list = self.CreatingTreeview(master=self)
 
-    class __CreatingTreeview(ctk.CTkFrame):
+    class CreatingTreeview(ctk.CTkFrame):
         def __init__(self, master):
             super().__init__(master=master, fg_color="transparent")
             self.grid(row=1, column=0, columnspan=3, sticky="news")
+            self.songs_list = []
 
             self.song_treeview = ttk.Treeview(self, columns=("name", "length"), show="headings")
             self.song_treeview.grid(padx=(10, 0), pady=10, row=1, column=0, sticky="nse")
@@ -250,18 +301,37 @@ class RightFrame(ctk.CTkFrame):
             self.song_treeview.column("name", anchor="w", width=325)
             self.song_treeview.column("length", anchor="w", width=50)
 
-            self.scrollbar = ctk.CTkScrollbar(self, orientation="vertical", command=self.song_treeview.yview)
+            self.scrollbar = ctk.CTkScrollbar(self,
+                                              orientation="vertical",
+                                              command=self.song_treeview.yview,
+                                              button_color="#bdbdbd",
+                                              button_hover_color="#adadad"
+                                              )
             self.song_treeview.configure(yscrollcommand=self.scrollbar.set)
 
             self.scrollbar.grid(row=1, column=1, sticky="ns")
 
             # TODO delete
-            # import random
-            # for i in range(4):
-            #     name = f"Song {i + 1}"
-            #     length = f"{random.randint(2, 5)}:{random.randint(0, 59):02d}"
-            #     tag = "even" if i % 2 == 0 else "odd"
-            #     self.song_treeview.insert("", "end", values=(name, length), tags=(tag,))
+            self.update_songs_list()
+
+            self.song_treeview.bind("<Double-1>", self.on_item_click)
+
+        def on_item_click(self, event):
+            selected_item = self.song_treeview.focus()
+            song_name = self.song_treeview.item(selected_item, "values")[0]
+            print("Ви вибрали пісню:", song_name)
+
+        def update_songs_list(self):
+            self.songs_list = []
+            self.song_treeview.delete(*self.song_treeview.get_children())
+
+            if os.path.isfile("../Audio/song_list.txt"):
+                with open("../Audio/song_list.txt", "r") as song_list:
+                    for index, song_name in enumerate(song_list):
+                        song_name = song_name.strip()
+                        tag = "even" if index % 2 == 0 else "odd"
+                        self.song_treeview.insert("", "end", values=(song_name,), tags=(tag,))
+                print("Treeview updated")
 
     def __creating_objects(self):
         self.search_label = ctk.CTkLabel(self, width=30, height=30, anchor="w", text="Search")
@@ -378,19 +448,20 @@ class MPS(ctk.CTk):
 
         self.frame_center.grid(row=1, column=1, padx=(3, 3), pady=(0, 0), sticky="news")
 
-        self.title_bar_left = TitleBarLeft(master=self)
-        self.title_bar_left.grid(row=0, column=0, padx=(0, 0), pady=(0, 0), sticky="news")
-        self.title_bar_right = TitleBarRight(master=self)
-        self.title_bar_right.grid(row=0, column=1, columnspan=2, padx=(0, 0), pady=(0, 0), sticky="news")
-        self.frame_left = LeftFrame(master=self)
+        self.frame_left = LeftFrame(master=self, )
         self.frame_left.grid(row=1, column=0, padx=(0, 0), pady=(0, 0), sticky="news")
         self.frame_bottom = BottomFrame(master=self)
         self.frame_bottom.grid(row=2, column=0, columnspan=3, padx=(0, 0), pady=(5, 10), sticky="news")
         self.frame_right = RightFrame(master=self)
         self.frame_right.grid(row=1, column=2, padx=(3, 0), pady=(0, 0), sticky="news")
+        self.title_bar_left = TitleBarLeft(master=self, file_operations=FileOperations(self.frame_right))
+        self.title_bar_left.grid(row=0, column=0, padx=(0, 0), pady=(0, 0), sticky="news")
+        self.title_bar_right = TitleBarRight(master=self)
+        self.title_bar_right.grid(row=0, column=1, columnspan=2, padx=(0, 0), pady=(0, 0), sticky="news")
 
 
 if __name__ == "__main__":
     app = MPS()
     ThemeManager.set_dark_theme() if ctk.get_appearance_mode() == "Dark" else ThemeManager.set_light_theme()
     app.mainloop()
+
