@@ -1,6 +1,7 @@
 import os
 from ctypes import windll
 import webbrowser
+import threading
 
 import customtkinter as ctk
 from tkinter import Menu
@@ -8,6 +9,7 @@ from tkinter import ttk
 from PIL import Image
 
 import file_operations
+import music_controls
 
 
 class ThemeManager:
@@ -151,18 +153,15 @@ class TitleBarLeft(ctk.CTkFrame):
         self.__creating_menu()
         self.__events()
 
-    """GUI Private Methods"""
-
     def __creating_objects(self):
         """
         Create and configure the logo button for the title bar.
         """
-        self.logo_button = ctk.CTkButton(
-                                         master=self,
+        self.logo_button = ctk.CTkButton(master=self,
                                          width=35,
                                          height=30,
-                                         fg_color="transparent",
                                          text="",
+                                         fg_color="transparent",
                                          command=lambda: self.logo_menu.post(
                                              x=self.master.winfo_rootx(),
                                              y=self.master.winfo_rooty() + self.logo_button.winfo_height()
@@ -239,6 +238,7 @@ class LeftFrame(ctk.CTkFrame):
     Args:
         master (ctk.CTk): The parent widget to which this frame belongs.
     """
+
     def __init__(self, master):
         super().__init__(master=master, corner_radius=0)
 
@@ -248,6 +248,89 @@ class LeftFrame(ctk.CTkFrame):
 
         self.album_cover_label = ctk.CTkLabel(master=self, image=self.vinyl_disk_image, text="")
         self.album_cover_label.grid(row=1, column=0, padx=(10, 0), pady=(20, 10), sticky="news")
+
+
+class CenterFrame(ctk.CTkFrame):
+    def __init__(self, master):
+        super().__init__(master=master, corner_radius=0, fg_color="transparent")
+
+        self.__creating_objects()
+
+    def __creating_objects(self):
+        self.bass_button = ctk.CTkButton(master=self,
+                                         width=75,
+                                         height=30,
+                                         fg_color="Red",
+                                         text="Bass",
+                                         command=None,
+                                         hover=True,
+                                         )
+        self.drum_button = ctk.CTkButton(master=self,
+                                         width=75,
+                                         height=30,
+                                         fg_color="Red",
+                                         text="Drum",
+                                         command=None,
+                                         hover=True,
+                                         )
+        self.vocals_button = ctk.CTkButton(master=self,
+                                           width=75,
+                                           height=30,
+                                           fg_color="Red",
+                                           text="Vocals",
+                                           command=None,
+                                           hover=True,
+                                           )
+        self.other_button = ctk.CTkButton(master=self,
+                                          width=75,
+                                          height=30,
+                                          fg_color="Red",
+                                          text="Other",
+                                          command=None,
+                                          hover=True,
+                                          )
+
+        self.bass_slider = ctk.CTkSlider(master=self,
+                                         width=250,
+                                         height=15,
+                                         from_=0,
+                                         to=100,
+                                         number_of_steps=25,
+                                         progress_color=("Red", "Red")
+                                         )
+        self.drum_slider = ctk.CTkSlider(master=self,
+                                         width=250,
+                                         height=15,
+                                         from_=0,
+                                         to=100,
+                                         number_of_steps=25,
+                                         progress_color=("Red", "Red")
+                                         )
+        self.vocals_slider = ctk.CTkSlider(master=self,
+                                           width=250,
+                                           height=15,
+                                           from_=0,
+                                           to=100,
+                                           number_of_steps=25,
+                                           progress_color=("Red", "Red")
+                                           )
+        self.other_slider = ctk.CTkSlider(master=self,
+                                          width=250,
+                                          height=15,
+                                          from_=0,
+                                          to=100,
+                                          number_of_steps=25,
+                                          progress_color=("Red", "Red")
+                                          )
+        self.bass_button.grid(row=0, column=0, pady=(20, 0), padx=(7, 0))
+        self.drum_button.grid(row=1, column=0, pady=(35, 0), padx=(7, 0))
+        self.vocals_button.grid(row=2, column=0, pady=(35, 0), padx=(7, 0))
+        self.other_button.grid(row=3, column=0, pady=(35, 0), padx=(7, 0))
+
+        self.bass_slider.grid(row=0, column=1, pady=(20, 0))
+        self.drum_slider.grid(row=1, column=1, pady=(35, 0))
+        self.vocals_slider.grid(row=2, column=1, pady=(35, 0))
+        self.other_slider.grid(row=3, column=1, pady=(35, 0))
 
 
 class RightFrame(ctk.CTkFrame):
@@ -342,7 +425,7 @@ class RightFrame(ctk.CTkFrame):
             """
             selected_item = self.song_treeview.focus()
             song_name = self.song_treeview.item(selected_item, "values")[0]
-            print("Selected song:", song_name)
+            music_controls.get_song_name(song_name)
 
         def update_songs_list(self):
             """
@@ -379,6 +462,7 @@ class BottomFrame(ctk.CTkFrame):
 
     def __init__(self, master):
         super().__init__(master=master, corner_radius=0)
+
         self.grid_columnconfigure((0, 1, 2), weight=0)  # Columns 0, 1, and 2 have no expansion
         self.grid_columnconfigure((3, 4), weight=1)  # Columns 3 and 4 expand
         self.grid_columnconfigure((5, 6, 7), weight=0)  # Columns 5, 6, and 7 have no expansion
@@ -388,23 +472,6 @@ class BottomFrame(ctk.CTkFrame):
             light_image=Image.open("Images/Buttons/VinylDiskDark.png"),
             size=(40, 40)
         )
-
-        self.album_cover_label = ctk.CTkLabel(
-            master=self,
-            image=self.album_cover_image,
-            text=""
-        )
-        self.album_cover_label.grid(row=0, column=3, padx=(0, 5), pady=(0, 0), sticky="nes")
-
-        self.label = ctk.CTkLabel(
-            self,
-            width=30,
-            height=30,
-            text="Song name\nArtist nickname",
-            anchor="e"
-        )
-        self.label.grid(row=0, column=4, padx=(5, 0), pady=(0, 0), sticky="nws")
-
         self.images = {
             "next": ctk.CTkImage(
                 dark_image=Image.open("Images/Buttons/NextLight.png"),
@@ -448,19 +515,55 @@ class BottomFrame(ctk.CTkFrame):
             )
         }
 
-        # Dynamically create class attributes
-        for name, image in self.images.items():
-            button = self.create_button(image)
-            setattr(self, f"{name}_button", button)
+        self.is_playing = False
+        self.paused = False
+        self.music_thread = None
+
+        self.__creating_objects()
+
+    def __creating_objects(self):
+        """
+        Create and configure the buttons and labels for the bottom frame.
+        """
+        self.album_cover_label = ctk.CTkLabel(
+            master=self,
+            image=self.album_cover_image,
+            text=""
+        )
+
+        self.label = ctk.CTkLabel(
+            master=self,
+            width=30,
+            height=30,
+            text="Song name\nArtist nickname",
+            anchor="e"
+        )
+
+        self.previous_button = self.__create_button(self.images.get("previous"))
+        self.play_pause_button = self.__create_button(self.images.get("play"))
+        self.next_button = self.__create_button(self.images.get("next"))
+        self.volume_button = self.__create_button(self.images.get("volume"))
+        self.repeat_button = self.__create_button(self.images.get("repeat"))
+        self.shuffle_button = self.__create_button(self.images.get("shuffle"))
+
+        self.previous_button.configure(command=...)
+        self.play_pause_button.configure(command=self.toggle_play_pause)
+        self.next_button.configure(command=...)
+        self.volume_button.configure(command=...)
+        self.repeat_button.configure(command=...)
+        self.shuffle_button.configure(command=...)
+
+        self.album_cover_label.grid(row=0, column=3, padx=(0, 5), pady=(0, 0), sticky="nes")
+        self.label.grid(row=0, column=4, padx=(5, 0), pady=(0, 0), sticky="nws")
 
         self.previous_button.grid(row=0, column=0, pady=(10, 10), sticky="news")
-        self.pause_button.grid(row=0, column=1, pady=(10, 10), sticky="news")
+        self.play_pause_button.grid(row=0, column=1, pady=(10, 10), sticky="news")
         self.next_button.grid(row=0, column=2, pady=(10, 10), sticky="news")
         self.volume_button.grid(row=0, column=5, pady=(10, 10), sticky="news")
         self.repeat_button.grid(row=0, column=6, pady=(10, 10), sticky="news")
         self.shuffle_button.grid(row=0, column=7, pady=(10, 10), sticky="news")
 
-    def create_button(self, image, command=None):
+    def __create_button(self, image):
         """
         Creates a button with the specified image and command.
 
@@ -477,11 +580,26 @@ class BottomFrame(ctk.CTkFrame):
             height=40,
             fg_color="transparent",
             text="",
-            command=command,
             hover=False,
             image=image
         )
         return button
+
+    def toggle_play_pause(self):
+        """
+        Toggle between play and pause states. Changes the button image and command accordingly.
+        """
+        if self.is_playing:
+            # Stop playback
+            self.play_pause_button.configure(image=self.images["play"])
+            self.is_playing = False
+            music_controls.play_pause_music()
+        else:
+            # Start playback
+            self.play_pause_button.configure(image=self.images["pause"])
+            self.is_playing = True
+            music_controls.play_pause_music()
+
 
 
 class MPS(ctk.CTk):
@@ -499,10 +617,10 @@ class MPS(ctk.CTk):
         self.grid_columnconfigure(1, minsize=340, weight=1)
         self.grid_columnconfigure(2, minsize=400, weight=1)
 
-        self.frame_center = ctk.CTkFrame(self, fg_color="transparent")
+        self.frame_center = CenterFrame(master=self)
         self.frame_center.grid(row=1, column=1, padx=(3, 3), pady=(0, 0), sticky="news")
 
-        self.frame_left = LeftFrame(master=self, )
+        self.frame_left = LeftFrame(master=self)
         self.frame_left.grid(row=1, column=0, padx=(0, 0), pady=(0, 0), sticky="news")
 
         self.frame_bottom = BottomFrame(master=self)
@@ -523,4 +641,3 @@ if __name__ == "__main__":
     app = MPS()
     ThemeManager.set_dark_theme() if ctk.get_appearance_mode() == "Dark" else ThemeManager.set_light_theme()
     app.mainloop()
-
